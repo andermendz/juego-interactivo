@@ -27,7 +27,7 @@ class GameController extends Controller
             'score' => 0,
             'questions_answered' => 0,
             'correct_answers' => 0,
-            'questions_ids' => Question::inRandomOrder()->pluck('id')->toArray()
+            'answered_questions' => []
         ]);
 
         return redirect()->route('game.play');
@@ -39,44 +39,64 @@ class GameController extends Controller
             return redirect()->route('game.index');
         }
 
-        $questionIds = session('questions_ids', []);
-        
-        if (empty($questionIds) || session('questions_answered', 0) >= 5) {
+        // Check if game is finished
+        if (session('questions_answered', 0) >= 5) {
             return redirect()->route('game.finish');
         }
 
-        $currentQuestionId = array_shift($questionIds);
-        session(['questions_ids' => $questionIds]);
+        // Get random question excluding previously answered ones
+        $answeredQuestions = session('answered_questions', []);
+        $question = Question::whereNotIn('id', $answeredQuestions)
+                          ->inRandomOrder()
+                          ->first();
 
-        $question = Question::find($currentQuestionId);
+        if (!$question) {
+            // If no more questions available, redirect to finish
+            return redirect()->route('game.finish');
+        }
+
+        // Store answered question ID in session
+        $answeredQuestions[] = $question->id;
+        session(['answered_questions' => $answeredQuestions]);
 
         return view('game.play', compact('question'));
     }
 
     public function answer(Request $request)
     {
-        $request->validate([
-            'question_id' => 'required|exists:questions,id',
-            'answer' => 'required|in:a,b,c,d'
-        ]);
+        if (!session()->has('player_name')) {
+            return redirect()->route('game.index');
+        }
 
         $question = Question::find($request->question_id);
-        $isCorrect = $question->correct_answer === $request->answer;
+        $correct = $question->correct_answer === $request->answer;
 
-        if ($isCorrect) {
-            session([
-                'score' => session('score', 0) + 10,
-                'correct_answers' => session('correct_answers', 0) + 1
+        // Update session score and answers count
+        session()->increment('score', $correct ? 10 : 0);
+        session()->increment('correct_answers', $correct ? 1 : 0);
+        session()->increment('questions_answered', 1);
+
+        // Check if game is finished (5 questions)
+        if (session('questions_answered') >= 5) {
+            // Save score
+            Score::create([
+                'player_name' => session('player_name'),
+                'score' => session('score'),
+                'correct_answers' => session('correct_answers'),
+                'questions_answered' => 5 // Always 5 questions
+            ]);
+
+            return response()->json([
+                'correct' => $correct,
+                'correct_answer' => $question->correct_answer,
+                'finished' => true
             ]);
         }
 
-        session([
-            'questions_answered' => session('questions_answered', 0) + 1
-        ]);
-
         return response()->json([
-            'correct' => $isCorrect,
-            'correct_answer' => $question->correct_answer
+            'correct' => $correct,
+            'correct_answer' => $question->correct_answer,
+            'finished' => false
         ]);
     }
 
@@ -86,34 +106,26 @@ class GameController extends Controller
             return redirect()->route('game.index');
         }
 
-        $score = new Score([
-            'player_name' => session('player_name'),
-            'score' => session('score', 0),
-            'questions_answered' => session('questions_answered', 0),
-            'correct_answers' => session('correct_answers', 0)
-        ]);
-        $score->save();
+        // Ensure we only show the finish page if all 5 questions were answered
+        if (session('questions_answered', 0) < 5) {
+            return redirect()->route('game.play');
+        }
 
-        $topScores = Score::orderBy('score', 'desc')
-            ->take(10)
-            ->get();
+        $player_name = session('player_name');
+        $score = session('score', 0);
+        $correct_answers = session('correct_answers', 0);
+        $questions_answered = 5; // Always 5 questions
 
-        $data = [
-            'player_name' => session('player_name'),
-            'score' => session('score', 0),
-            'correct_answers' => session('correct_answers', 0),
-            'questions_answered' => session('questions_answered', 0),
-            'top_scores' => $topScores
-        ];
+        // Get top 10 scores
+        $top_scores = Score::orderByDesc('score')
+                          ->orderByDesc('correct_answers')
+                          ->orderBy('questions_answered')
+                          ->take(10)
+                          ->get();
 
-        session()->forget([
-            'player_name',
-            'score',
-            'questions_answered',
-            'correct_answers',
-            'questions_ids'
-        ]);
+        // Clear game session
+        session()->forget(['player_name', 'score', 'correct_answers', 'questions_answered', 'answered_questions']);
 
-        return view('game.finish', $data);
+        return view('game.finish', compact('player_name', 'score', 'correct_answers', 'questions_answered', 'top_scores'));
     }
 }

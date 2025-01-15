@@ -161,14 +161,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             } else {
                 button.classList.add('incorrect');
-                feedbackDiv.textContent = '¡Incorrecto!';
+                feedbackDiv.innerHTML = `
+                    <div class="text-red-600 mb-2">¡Incorrecto!</div>
+                    <div class="text-gray-600">La respuesta correcta era: 
+                        <span class="font-semibold text-indigo-600">
+                            ${data.correct_answer.toUpperCase()}
+                        </span>
+                    </div>
+                `;
                 feedbackDiv.classList.add('incorrect');
             }
 
             feedbackDiv.classList.remove('hidden');
             
             setTimeout(() => {
-                window.location.href = '{{ route("game.play") }}';
+                if (data.finished) {
+                    window.location.href = '{{ route("game.finish") }}';
+                } else {
+                    window.location.href = '{{ route("game.play") }}';
+                }
             }, 2000);
         });
     }
