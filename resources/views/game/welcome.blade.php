@@ -6,7 +6,7 @@
 <div class="text-center animate-fade-in">
     <div class="game-card">
         <h2 class="text-3xl font-bold text-indigo-600 mb-6 animate-bounce-soft">
-            ¡Bienvenido a Trivia Aventura!
+            ¡Bienvenido a Trivia!
         </h2>
         
         <p class="mb-8 text-gray-600 text-lg">

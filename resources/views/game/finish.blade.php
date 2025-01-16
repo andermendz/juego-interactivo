@@ -26,11 +26,11 @@
             @php
                 $percentage = ($correct_answers / $questions_answered) * 100;
                 $message = match(true) {
-                    $percentage == 100 => '¡Perfecto! Eres un genio absoluto.',
-                    $percentage >= 80 => '¡Excelente trabajo! Casi perfecto.',
-                    $percentage >= 60 => '¡Buen trabajo! Hay espacio para mejorar.',
-                    $percentage >= 40 => 'No está mal, sigue practicando.',
-                    default => 'Inténtalo de nuevo, ¡la práctica hace al maestro!'
+                    $percentage == 100 => '¡Increíble! Eres todo un experto 🌟',
+                    $percentage >= 80 => '¡Muy bien hecho! Casi aciertas todas 🎯',
+                    $percentage >= 60 => '¡Bien! Vas por buen camino 👍',
+                    $percentage >= 40 => 'Hey, no está nada mal. ¡Sigue así! 💪',
+                    default => '¡Ánimo! La próxima vez será mejor 😊'
                 };
             @endphp
 
